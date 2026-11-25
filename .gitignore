@@ -1,0 +1,15 @@
+# Workspaces hold client data: never commit one.
+followup.db
+followup.db-*
+views/
+snapshots/
+runs/
+imports/
+learned/
+Follow-ups.xlsx
+Follow-ups.html
+*.pyc
+__pycache__/
+.DS_Store
+node_modules/
+.claude-plugin/types/

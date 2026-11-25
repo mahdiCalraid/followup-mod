@@ -1,0 +1,44 @@
+{
+  "business_name": "",
+  "sender_name": "",
+  "owner_emails": [],
+  "internal_domains": [],
+  "mail": "gmail",
+  "quickbooks": "connector",
+  "python": "python3",
+  "rules": {
+    "quote_quiet_days": 5,
+    "quote_stale_days": 90,
+    "lead_quiet_days": 21,
+    "dormant_months": 6,
+    "include_old_conversations": false,
+    "invoice_tiers": {"friendly": 1, "second": 15, "firm": 31},
+    "order": [
+      "invoice_overdue",
+      "unanswered_inbound",
+      "quote_quiet",
+      "silent_after_proposal",
+      "dormant_customer",
+      "old_conversation"
+    ],
+    "max_per_run": 7,
+    "skip_cooldown_days": 14,
+    "no_reply_cooldown_days": 14
+  },
+  "draft": {
+    "max_body_chars": 1200,
+    "max_subject_chars": 120,
+    "banned_phrases": [
+      "I hope this email finds you well",
+      "just circling back",
+      "per my last email",
+      "as per my previous email",
+      "final notice",
+      "legal action",
+      "collections agency",
+      "act now",
+      "as an AI"
+    ]
+  },
+  "do_not_contact": []
+}

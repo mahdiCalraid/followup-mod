@@ -1,0 +1,17 @@
+{
+  "name": "followup-mod",
+  "description": "The Follow-up mod for Claude Code: drafts customer follow-ups for review; never sends.",
+  "owner": {
+    "name": "Transition States AI"
+  },
+  "plugins": [
+    {
+      "name": "followup",
+      "source": "./",
+      "description": "Follow-ups for a small business: Claude drafts follow-ups for overdue invoices, quiet quotes and unanswered customers; you approve them in a pane and they land in Gmail as drafts. Never sends, never changes QuickBooks.",
+      "author": {
+        "name": "Transition States AI"
+      }
+    }
+  ]
+}
