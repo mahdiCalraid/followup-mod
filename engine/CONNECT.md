@@ -24,7 +24,8 @@ The prompt says what the mod sees. To confirm, look for QuickBooks tools: use To
 
 Which connector it is matters:
 - **Intuit QuickBooks** (made by Intuit; tools such as `company-info`): the one to use.
-- **Intuit QuickBooks Labs** (beta) or another company's QuickBooks connector: these can send invoices and change records. The mod blocks those tools here, but say: "This connector can also change your books. It's blocked in this folder, but I recommend **Intuit QuickBooks** by Intuit instead." Go on only if they want to.
+- **Intuit QuickBooks Labs** (beta; tools such as `company_get_context`, `transactions_search`, `contacts_search`): it works well for follow-ups, and the mod hides its tools that change data, bank feeds, reconciliation, payroll and tax (about 90 of its 126 tools), leaving reads only. `company_get_context` → `labs_consent` lists what the owner allowed. If any "Change:" permission is on, say: "QuickBooks lets you turn off Labs' Change permissions. Follow-ups only needs **View: Books and reports**, so turning the rest off adds a second lock."
+- Another company's QuickBooks connector: these can change records. The mod blocks those tools here, but recommend Intuit's own instead. Go on only if they want to.
 
 ## Step 2. Connect it (the owner does this)
 

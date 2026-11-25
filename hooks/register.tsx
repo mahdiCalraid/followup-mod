@@ -685,6 +685,9 @@ const DENY_TOKENS = new Set([
   'undo', 'restore', 'exclude', 'classify', 'reclassify', 'link', 'unlink', 'mark', 'share', 'invite',
   'activate', 'deactivate', 'enable', 'disable', 'convert', 'adjust', 'accept', 'reject', 'finalize',
   'publish', 'modify', 'change', 'replace', 'insert', 'put', 'patch',
+  'begin', 'finish', 'start', 'complete', 'select', 'connect', 'disconnect', 'consent',
+  // Whole areas a follow-up never needs (QuickBooks Labs): kept out of reach.
+  'reconciliation', 'payroll', 'lending', 'bank', 'tax',
 ])
 // Browser tools that could type into a QuickBooks form or run code in its page.
 const DENY_NAMES = new Set(['form_input', 'javascript_tool', 'javascript_exec', 'file_upload', 'upload_image'])

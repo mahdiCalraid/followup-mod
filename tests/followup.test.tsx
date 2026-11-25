@@ -455,6 +455,13 @@ test('when set up, every QuickBooks and browser write is denied, and reads still
     'mcp__ng__approve_bank_transactions', 'mcp__ng__book_bank_transaction', 'mcp__ng__bulk_assign_classification',
     'mcp__ng__apply_credit_memo', 'mcp__labs__payments_record', 'mcp__labs__estimates_convert',
     'mcp__claude-in-chrome__form_input', 'mcp__claude-in-chrome__javascript_tool', 'mcp__Claude_Browser__javascript_tool',
+    // QuickBooks Labs, as connected on 2026-11-25.
+    'mcp__1d52__transactions_send', 'mcp__1d52__transactions_void', 'mcp__1d52__transactions_reclassify_lines',
+    'mcp__1d52__reconciliation_begin', 'mcp__1d52__reconciliation_finish', 'mcp__1d52__company_close_books',
+    'mcp__1d52__company_select', 'mcp__1d52__quickbooks_labs_connect', 'mcp__1d52__bank_feed_review',
+    'mcp__1d52__bank_feed_categorize', 'mcp__1d52__qbo_sales_send_payment_link', 'mcp__1d52__qbo_payroll_get_employees',
+    'mcp__1d52__contacts_deactivate', 'mcp__1d52__attachments_begin_upload', 'mcp__1d52__feedback_send',
+    'mcp__1d52__company_set_exchange_rate', 'mcp__1d52__tax_create_code',
   ]
   for (const tool of writes) {
     const result = await $.tool.call({ tool })
@@ -467,6 +474,8 @@ test('when set up, every QuickBooks and browser write is denied, and reads still
     'mcp__labs__accounts_search', 'mcp__labs__accounts_get', 'mcp__labs__accounts_balances', 'mcp__labs__invoices_search',
     'mcp__claude-in-chrome__tabs_create_mcp', 'mcp__claude-in-chrome__get_page_text', 'mcp__claude-in-chrome__navigate',
     'mcp__ccd_turn__update_plan',
+    'mcp__1d52__company_get_context', 'mcp__1d52__contacts_search', 'mcp__1d52__transactions_search',
+    'mcp__1d52__transactions_get', 'mcp__1d52__reports_run', 'mcp__1d52__reports_list', 'mcp__1d52__items_search',
   ]
   for (const tool of reads) {
     const result = await $.tool.call({ tool })
