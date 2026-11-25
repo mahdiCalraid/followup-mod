@@ -413,6 +413,10 @@ async function startDemo($: EngineInterface, isInstant: boolean): Promise<string
   }
   const installed = await installEngine($, true)
   if (!installed) return 'The engine files are missing from the plugin; reinstall it.'
+  // A demo folder starts clean each time, so the demo can be shown again and
+  // again (open follow-ups from the last showing would block new ones). Only
+  // the fictional bakery's own database is ever reset here.
+  if (name === DEMO_NAME && (await exists($, `${WS}/followup.db`))) await fu($, ['reset', '--yes'])
   await fu($, ['init'])
   const out = await fu($, isInstant ? ['demo', '--with-drafts'] : ['demo'])
   await checkConfigured($)
