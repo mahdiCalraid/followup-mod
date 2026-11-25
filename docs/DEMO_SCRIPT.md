@@ -11,12 +11,12 @@ Tested on 2026-11-25:
 
 1. Install the mod once. It loads in every session, but it only shows its pane and guards a folder that has been set up for it.
    ```
-   claude plugin marketplace add /Users/ed/TS_projects/products/followup_mod
+   claude plugin marketplace add mahdiCalraid/followup-mod
    claude plugin install followup@followup-mod
    ```
-2. In the Claude desktop app, open a new Code session in `/Users/ed/TS_projects/followup-demo`.
+2. In the Claude desktop app, open a new Code session in an empty demo folder (for example `followup-demo`).
 3. Run `/followup demo instant` and check that the Follow-ups pane fills, with 8 drafts and 1 phone call. Each `/followup demo` starts the demo folder clean, so you can rehearse as often as you like.
-4. Optional: connect the **Intuit QuickBooks** connector to your test company, to show the real path at the end.
+4. Optional: connect the **Intuit QuickBooks** connector to your test company (Customize → Connectors → Intuit QuickBooks → Connect, then sign in on intuit.com). Then open a new session and run `/followup connect`, which tests reads only. The pane line should say **QuickBooks: connected, read-only here**.
 
 ## In the meeting
 
@@ -31,8 +31,8 @@ Tested on 2026-11-25:
    - Press **Ask for a change** on one draft ("shorter, mention our holiday menu") and watch it redraft.
    - **Approve** two drafts. Then **Put in Gmail**: they appear in Gmail Drafts. "You press Send. It can't." Claude asks once before creating demo drafts in your Gmail.
 4. **Your records (1 min).** Open the **Customers** and **Sent** tabs, then **Open spreadsheet** (Excel, 7 sheets) and **Open dashboard** (any browser, works offline, with search, sorting and CSV download). "This is a small database on your own computer. Every customer, follow-up and reply is kept."
-5. **What it never does (30 s).** It never sends, never changes QuickBooks, never invents a number (code checks every amount, invoice number, date and recipient) and never signs in for you.
-6. **Next step (30 s).** "We set it up on your computer in about an hour: connect QuickBooks and Gmail, teach it your voice, then run it on your real data together."
+5. **What it never does (30 s).** It never sends, never changes QuickBooks, never invents a number (code checks every amount, invoice number, date and recipient) and never signs in for you. Point at the pane line **QuickBooks: connected, read-only here**: in their folder, Claude can't even see the QuickBooks tools that change anything.
+6. **Next step (30 s).** "We set it up on your computer in about an hour: connect QuickBooks and Gmail, teach it your voice, then run it on your real data together. The install is one link: github.com/mahdiCalraid/followup-mod."
 
 ## If something goes wrong
 

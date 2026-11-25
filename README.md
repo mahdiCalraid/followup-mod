@@ -19,7 +19,7 @@ All three are refreshed after every change.
 ## What it never does
 
 - **It never sends, replies to or forwards an email.** A guard in the mod blocks those tools in this workspace. You press Send yourself.
-- **It never changes QuickBooks.** Write tools are blocked, and the Chrome path reads report pages only.
+- **It never changes QuickBooks.** In a follow-up folder, Claude doesn't even see the QuickBooks tools that could create, edit, delete, send or import anything: the mod hides them and refuses any call of one. The Chrome path reads report pages only.
 - **It never invents a fact.** A code check rejects any draft whose amount, invoice number, date, day count or recipient doesn't match QuickBooks and your mail.
 - **It never nags.** At most 7 a day. A skip hides a customer for 14 days. Do-not-contact is permanent.
 - **It never signs in for you or types passwords.** You connect QuickBooks and Gmail yourself, in Claude's settings.
@@ -34,16 +34,37 @@ All three are refreshed after every change.
 
 ## Install
 
-From a local folder:
+You need the Claude desktop app with Claude Code. Install the mod once, from a terminal:
 
 ```
-claude plugin marketplace add /path/to/followup_mod
+claude plugin marketplace add mahdiCalraid/followup-mod
 claude plugin install followup@followup-mod
 ```
 
-Then open Claude Code **in an empty folder for the business** (the workspace), and run `/followup setup`.
+Or type the same two lines, with `/plugin` in place of `claude plugin`, into a Claude Code session.
 
-To see it with fictional data first, run `/followup demo` (Claude drafts live) or `/followup demo instant` (drafts ready at once).
+Then:
+1. Make an empty folder for the business, for example `Documents/Follow-ups`.
+2. In the Claude app, open a **new Code session in that folder** and type `/followup setup`.
+
+To see it with fictional data first, open a session in another empty folder and type `/followup demo` (Claude drafts live) or `/followup demo instant` (drafts ready at once).
+
+**Updates:** `claude plugin marketplace update followup-mod`, then `claude plugin update followup@followup-mod`. Then type `/followup update` in the business folder. Your settings, voice and history are kept.
+
+## Connect QuickBooks safely
+
+Type `/followup connect`, or press **Connect QuickBooks** in the pane. Claude walks you through it:
+
+1. In Claude, open **Customize → Connectors** (or claude.ai/customize/connectors), find **Intuit QuickBooks** (made by Intuit) and press **Connect**.
+2. Intuit's own sign-in page opens. Check that the address ends in **intuit.com**, sign in, pick your company and approve. Claude never sees your password.
+3. Start a new Code session in your folder and type `/followup connect` again. Claude reads the company name and counts your customers, open quotes and unpaid invoices, so you can check it's the right company.
+
+What keeps it safe:
+- **Intuit's official connector**, with Intuit's sign-in. Disconnect it any time in Claude's settings or in your Intuit account.
+- **Read-only in your follow-up folder.** The mod hides every QuickBooks tool that could change your books (create, edit, delete, send, import, record payments...), so Claude can't call them. It also refuses any call that gets through. The pane shows **QuickBooks: connected, read-only here**, with how many tools are hidden.
+- **Not "QuickBooks Labs".** That beta connector can send invoices and change records. Use the one by Intuit.
+
+Don't want to connect it? Claude can read the QuickBooks reports in your own Chrome instead (with the Claude in Chrome extension), or you can drop exported reports into the folder's `imports/`.
 
 ## Commands
 
@@ -51,6 +72,7 @@ To see it with fictional data first, run `/followup demo` (Claude drafts live) o
 |---|---|
 | `/followup` | opens the pane |
 | `/followup setup` | prerequisites check and a short interview (voice, rules, do-not-contact) |
+| `/followup connect` | connects QuickBooks, read-only, and tests one read |
 | `/followup run` | reads QuickBooks and mail, ranks, drafts |
 | `/followup stage` | puts approved drafts into Gmail |
 | `/followup check` | marks sent drafts and finds replies |
@@ -73,7 +95,7 @@ There is one follow-up per customer per run. Customers with no email go on the p
 ## For developers
 
 - `docs/CONTRACT.md`: the database schema, the CLI, the JSON shapes and the rules
-- `engine/`: the instructions Claude follows (`RUN`, `DRAFT`, `STAGE`, `CHECK`, `SETUP`, `STATE`) and `scripts/fu.py` (standard-library Python and SQLite)
+- `engine/`: the instructions Claude follows (`RUN`, `DRAFT`, `STAGE`, `CHECK`, `SETUP`, `CONNECT`, `STATE`) and `scripts/fu.py` (standard-library Python and SQLite)
 - `hooks/register.tsx`: the pane, the commands and the send/QuickBooks-write guard
 
 Run the tests:

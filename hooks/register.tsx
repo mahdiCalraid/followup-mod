@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { CustomerView, FollowupTab, FollowupView, NeedItem, PaneData } from '../types'
+import type { CustomerView, FollowupTab, FollowupView, NeedItem, PaneData, QuickBooksStatus } from '../types'
 
 // The Follow-up mod: a pane over the engine's views/pane.json, the /followup
 // command, and a guard that blocks sending email and changing QuickBooks.
@@ -21,6 +21,7 @@ const confirming = atom({ plugin: 'followup', key: 'confirming' } as const, null
 const choice = atom({ plugin: 'followup', key: 'choice' } as const, {}, { shape: 'choice-1' })
 const busy = atom({ plugin: 'followup', key: 'busy' } as const, false)
 const ready = atom({ plugin: 'followup', key: 'ready' } as const, false)
+const qbStatus = atom({ plugin: 'followup', key: 'qb' } as const, null, { shape: 'qb-1' })
 
 // ── Workspace ──────────────────────────────────────────────────────────────
 // WS is the `workspace` option if set, else the session's folder. It counts
@@ -68,8 +69,18 @@ async function readJson($: EngineInterface, path: string): Promise<Record<string
 async function checkConfigured($: EngineInterface): Promise<boolean> {
   await ws($)
   const ok = WS !== '' && (await exists($, cfgPath()))
+  const changed = ok !== isConfigured
   isConfigured = ok
   if ((await read($, ready)) !== ok) await update($, ready, () => ok)
+  // The engine asks for the tool list only when something changes: tell it,
+  // so the tools that send or change QuickBooks go (or come back) now.
+  if (changed) {
+    try {
+      $.ui.invalidate('tool.list')
+    } catch {
+      // The guard still refuses every call of one.
+    }
+  }
   return ok
 }
 
@@ -130,12 +141,16 @@ async function refreshPane($: EngineInterface, force = false): Promise<void> {
 let pollTimer: { cancel: () => void } | null = null
 let isPolling = false
 
+let pollCount = 0
+
 async function poll($: EngineInterface): Promise<void> {
   if (isPolling) return
   isPolling = true
   try {
     await checkConfigured($)
     await refreshPane($)
+    // A connector can finish connecting after the session started.
+    if (++pollCount % QB_POLLS === 0) await refreshQuickBooks($)
   } catch {
     // Try again next tick.
   } finally {
@@ -370,13 +385,18 @@ const stagePrompt = () =>
   `Put my approved follow-ups into Gmail as drafts. I pressed "Put in Gmail" in the Follow-ups pane: that is approval to create drafts only, not to send.\n\nFollow ${WS}/followup_mod/STAGE.md exactly. Workspace: ${WS}`
 const checkPrompt = () =>
   `Check which follow-ups I sent and which got replies.\n\nFollow ${WS}/followup_mod/CHECK.md exactly. Workspace: ${WS}`
+const connectPrompt = (qb: QuickBooksStatus | null) =>
+  `Connect QuickBooks for follow-ups, read-only.\n\nFollow ${WS}/followup_mod/CONNECT.md exactly. Workspace: ${WS}\n` +
+  (qb?.connected
+    ? `The mod sees a QuickBooks connector: ${plural(qb.tools, 'tool')}, of which ${qb.hidden} that could change QuickBooks are hidden from you in this folder.`
+    : 'The mod sees no QuickBooks connector in this session yet.')
 const setupPrompt = () =>
   `Set up my follow-up workspace.\n\nFollow ${WS}/followup_mod/SETUP.md exactly. Workspace: ${WS}. Ask me the questions in small batches; use only what I tell you.`
 
 // Submits from a timer: a hook can't submit a prompt while it holds the turn.
 function submitSoon($: EngineInterface, text: string): void {
   $.clock.after(50, () => {
-    void $.prompt.submit({ text, asUser: true })
+    $.prompt.submit({ text, asUser: true }).catch(() => undefined)
   })
 }
 
@@ -386,7 +406,7 @@ function draftSoon($: EngineInterface): void {
   draftTimer?.cancel()
   draftTimer = $.clock.after(DRAFT_DEBOUNCE_MS, () => {
     draftTimer = null
-    void $.prompt.submit({ text: draftPrompt(), asUser: true })
+    $.prompt.submit({ text: draftPrompt(), asUser: true }).catch(() => undefined)
   })
 }
 
@@ -402,6 +422,27 @@ async function startSetup($: EngineInterface): Promise<string> {
   await openPane($)
   submitSoon($, setupPrompt())
   return `Workspace: ${WS}\nCopied ${installed.copied} engine files into ${modDir()}/. Claude will now ask you a few questions to set it up.`
+}
+
+async function startConnect($: EngineInterface): Promise<string> {
+  // Set the folder up first, so the guard is on before any QuickBooks tool runs.
+  if (!(await checkConfigured($))) {
+    const installed = await installEngine($)
+    if (!installed) return 'The engine files are missing from the plugin; reinstall it.'
+    await fu($, ['init'])
+    await checkConfigured($)
+    await refreshPane($, true)
+  } else {
+    // CONNECT.md may be newer than this folder's copy.
+    await installEngine($)
+  }
+  startPolling($)
+  await openPane($)
+  const qb = await refreshQuickBooks($)
+  submitSoon($, connectPrompt(qb))
+  return qb?.connected
+    ? `QuickBooks is connected. In this folder Claude sees only its read tools (${plural(qb.hidden, 'tool')} that could change QuickBooks are hidden). Claude will now test one read.`
+    : 'QuickBooks is not connected yet. Claude will walk you through connecting it; you sign in on Intuit\'s own page.'
 }
 
 async function startDemo($: EngineInterface, isInstant: boolean): Promise<string> {
@@ -624,12 +665,29 @@ const ALWAYS_ALLOW = new Set([
   'search_threads',
   'get_thread',
   'get_message',
+  // The browser opening and closing its own tab (QuickBooks reports, path B).
+  'tabs_create',
+  'tabs_create_mcp',
+  'tabs_close',
+  'tabs_close_mcp',
 ])
+// The desktop app's own tools (task list, sessions, panes) reach neither mail nor QuickBooks.
+const isHostServer = (server: string) => server.startsWith('ccd_')
+// Any word here in a tool's name blocks it. QuickBooks connectors name their
+// changes with these verbs (`invoices_create`, `quickbooks-transaction-import`,
+// `book_bank_transaction`, `batch_entity_operations` ...).
 const DENY_TOKENS = new Set([
   'send', 'reply', 'forward', 'trash', 'delete', 'spam', 'create', 'update', 'void', 'import', 'upload',
   'categorize', 'reconcile', 'approve', 'book', 'apply', 'remove', 'write', 'post', 'pay', 'refund',
   'transfer', 'receive', 'edit', 'set',
+  'add', 'save', 'submit', 'record', 'match', 'unmatch', 'merge', 'sync', 'archive', 'batch', 'bulk',
+  'assign', 'cancel', 'close', 'deposit', 'charge', 'move', 'duplicate', 'attach', 'issue', 'schedule',
+  'undo', 'restore', 'exclude', 'classify', 'reclassify', 'link', 'unlink', 'mark', 'share', 'invite',
+  'activate', 'deactivate', 'enable', 'disable', 'convert', 'adjust', 'accept', 'reject', 'finalize',
+  'publish', 'modify', 'change', 'replace', 'insert', 'put', 'patch',
 ])
+// Browser tools that could type into a QuickBooks form or run code in its page.
+const DENY_NAMES = new Set(['form_input', 'javascript_tool', 'javascript_exec', 'file_upload', 'upload_image'])
 const DENY_TEXT =
   'Follow-up mod: sending email and changing QuickBooks are blocked in this workspace. Drafts only — the owner presses Send in Gmail.'
 
@@ -650,10 +708,62 @@ function toolTokens(tool: string): string[] {
 }
 
 function isBlockedMcpTool(tool: string): boolean {
-  if (!tool.startsWith('mcp__')) return false
+  if (!tool.startsWith('mcp__') || isHostServer(tool.split('__')[1] ?? '')) return false
   const tokens = toolTokens(tool)
-  if (ALWAYS_ALLOW.has(tokens.join('_'))) return false
-  return tokens.some(t => DENY_TOKENS.has(t))
+  const bare = tokens.join('_')
+  if (ALWAYS_ALLOW.has(bare)) return false
+  return DENY_NAMES.has(bare) || tokens.some(t => DENY_TOKENS.has(t))
+}
+
+// ── QuickBooks: what the session's tools show ─────────────────────────────
+// Connector servers have opaque names, so a server counts as QuickBooks when
+// one of its tools names or describes QuickBooks.
+
+const QB_RE = /quick\s*books|\bqbo\b/i
+const QB_POLLS = 10 // every 10th poll, about 30 s
+
+const serverOf = (tool: string) => tool.split('__')[1] ?? ''
+
+type ListedTool = { name: string; description: string; mcp: boolean }
+// What the tool.list hook last took out: a mod's own $.tool.list() may not show it.
+let hiddenByHook: ListedTool[] = []
+
+async function refreshQuickBooks($: EngineInterface): Promise<QuickBooksStatus | null> {
+  try {
+    return await lookForQuickBooks($)
+  } catch {
+    return null
+  }
+}
+
+async function lookForQuickBooks($: EngineInterface): Promise<QuickBooksStatus | null> {
+  let list: ListedTool[]
+  try {
+    list = await $.tool.list()
+  } catch {
+    return read($, qbStatus)
+  }
+  const seen = new Set(list.map(t => t.name))
+  const all = [...list, ...hiddenByHook.filter(t => !seen.has(t.name))]
+  const mcp = all.filter(t => t.name.startsWith('mcp__'))
+  const servers = new Set(mcp.filter(t => QB_RE.test(t.name) || QB_RE.test(t.description ?? '')).map(t => serverOf(t.name)))
+  const tools = mcp.filter(t => servers.has(serverOf(t.name)))
+  const status: QuickBooksStatus = {
+    connected: tools.length > 0,
+    tools: tools.length,
+    hidden: tools.filter(t => isBlockedMcpTool(t.name)).length,
+  }
+  const before = await read($, qbStatus)
+  if (JSON.stringify(before) !== JSON.stringify(status)) await update($, qbStatus, () => status)
+  return status
+}
+
+function qbLine(qb: QuickBooksStatus | null): string {
+  if (!qb) return 'QuickBooks: checking…'
+  if (!qb.connected) return 'QuickBooks: not connected'
+  return qb.hidden > 0
+    ? `QuickBooks: connected, read-only here (${plural(qb.hidden, 'tool')} that could change it hidden)`
+    : 'QuickBooks: connected, read-only here'
 }
 
 // ── Registration ───────────────────────────────────────────────────────────
@@ -662,6 +772,7 @@ const USAGE = [
   'Usage:',
   '/followup — open the Follow-ups pane',
   '/followup setup — set up this folder for your business',
+  '/followup connect — connect QuickBooks, read-only, and test it',
   '/followup demo — load the Brightwater Bakery demo and let Claude draft it',
   '/followup demo instant — the demo with ready-made drafts',
   '/followup run — check QuickBooks and mail for follow-ups now',
@@ -683,8 +794,8 @@ export const register: Register = (on, options) => {
       await $.command.register({
         name: 'followup',
         description:
-          'Follow-ups: /followup opens the pane; setup, demo, demo instant, run, stage, check, update, export.',
-        argumentHint: '[setup | demo | demo instant | run | stage | check | update | export]',
+          'Follow-ups: /followup opens the pane; setup, connect, demo, demo instant, run, stage, check, update, export.',
+        argumentHint: '[setup | connect | demo | demo instant | run | stage | check | update | export]',
       })
     } catch {
       // Registered again on the next start.
@@ -696,6 +807,7 @@ export const register: Register = (on, options) => {
         await refreshPane($, true)
         startPolling($)
         void openPane($)
+        void refreshQuickBooks($)
       }
     } catch {
       // The pane stays closed; /followup opens it.
@@ -712,9 +824,11 @@ export const register: Register = (on, options) => {
       await refreshPane($, true)
       startPolling($)
       await openPane($)
+      void refreshQuickBooks($)
       return { text: ok ? 'Follow-ups pane opened.' : `Follow-ups pane opened. ${NOT_SET_UP}` }
     }
     if (arg === 'setup') return { text: await startSetup($) }
+    if (arg === 'connect' || arg === 'connect quickbooks') return { text: await startConnect($) }
     if (arg === 'demo') return { text: await startDemo($, false) }
     if (arg === 'demo instant') return { text: await startDemo($, true) }
     if (arg === 'run' || arg === 'stage' || arg === 'check') {
@@ -764,6 +878,19 @@ export const register: Register = (on, options) => {
     return isActive ? { deny: DENY_TEXT } : next(e)
   }).catch(($, e, next) => (next.called ? next(e) : { deny: DENY_TEXT }))
 
+  // In a configured workspace Claude never even sees the tools that could send
+  // mail or change QuickBooks: they are taken out of the session's tool list.
+  // The guard above still refuses any call of one.
+  on('tool.list', async ($, e, next) => {
+    const listed = await next(e)
+    if (!isConfigured || listed.value === undefined) {
+      hiddenByHook = []
+      return listed
+    }
+    hiddenByHook = listed.value.filter(t => isBlockedMcpTool(t.name))
+    return { value: listed.value.filter(t => !isBlockedMcpTool(t.name)) }
+  })
+
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text, Button, Input, Select, Markdown, Link } = $.ui.resolve(e)
     const isReady = await read($, ready)
@@ -772,6 +899,7 @@ export const register: Register = (on, options) => {
     const confirmingId = await read($, confirming)
     const choices = await read($, choice)
     const isBusy = await read($, busy)
+    const qb = await read($, qbStatus)
 
     // ── Not set up: one card, two buttons ──
     if (!isReady) {
@@ -821,6 +949,15 @@ export const register: Register = (on, options) => {
         <Text>{countsLine}</Text>
         <Text>{moneyLine}</Text>
         <Text dimColor>{lastRunLine}</Text>
+        <Box flexWrap="wrap">
+          <Text color={qb?.connected ? 'green' : qb ? 'yellow' : undefined} dimColor={!qb}>
+            {qbLine(qb)}
+          </Text>
+          {qb && !qb.connected && <Text> · </Text>}
+          {qb && !qb.connected && (
+            <Button key="connect" plain label="Connect QuickBooks" onPress={async () => toast($, await startConnect($))} />
+          )}
+        </Box>
         {isBusy && <Text color="yellow">Working…</Text>}
         <Box flexWrap="wrap">
           <Button key="run" variant="primary" label="Run now" onPress={() => promptIfReady($, runPrompt())} />

@@ -1,6 +1,6 @@
 # Set up the follow-up workspace (`/followup setup`)
 
-You're setting this up with the business owner, often with Ed from Transition States sitting next to them. Be brief and friendly. Ask in small batches of 2 or 3 questions, and use only what they tell you.
+You're setting this up with the business owner, often with someone from Transition States sitting next to them. Be brief and friendly. Ask in small batches of 2 or 3 questions, and use only what they tell you.
 
 ## Ground rules
 
@@ -15,8 +15,8 @@ You're setting this up with the business owner, often with Ed from Transition St
    - Gmail or Google Workspace: check that a Gmail connector's `search_threads` tool is available. Try one harmless search (`newer_than:1d`, `pageSize: 1`, `THREAD_VIEW_IDS_ONLY`).
    - Outlook: check for the Microsoft 365 connector.
    - If it's missing, say: "Open Settings → Connectors, add Gmail (or Microsoft 365), sign in, then tell me." Wait for them.
-3. **QuickBooks.** Prefer the **Intuit QuickBooks** connector: test one read, such as company info or a customer search. If it's not available, check that Claude in Chrome is connected and that they're signed in to QuickBooks Online in that Chrome. Set `config.json` → `quickbooks` to `connector` or `chrome`.
-4. **Safety check.** Confirm the pane shows **Follow-ups**: that means the guard that blocks sending is active.
+3. **QuickBooks.** Follow `followup_mod/CONNECT.md`: the **Intuit QuickBooks** connector, which the owner connects on Intuit's own sign-in page, tested with reads only. If they'd rather not connect it, check that Claude in Chrome is connected and that they're signed in to QuickBooks Online in that Chrome. Set `config.json` → `quickbooks` to `connector` or `chrome`.
+4. **Safety check.** Confirm the pane shows **Follow-ups** and the line **QuickBooks: connected, read-only here**: the guard that blocks sending and QuickBooks changes is active.
 
 ## Step 2. Interview
 

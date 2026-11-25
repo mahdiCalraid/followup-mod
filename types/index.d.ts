@@ -120,6 +120,16 @@ export type PaneData = {
 
 export type FollowupTab = 'today' | 'pipeline' | 'sent' | 'customers'
 
+/** What the mod sees of a QuickBooks connector in this session's tools. */
+export type QuickBooksStatus = {
+  /** True when some MCP server's tools name or describe QuickBooks. */
+  connected: boolean
+  /** That server's tools in all. */
+  tools: number
+  /** Of those, the ones that could change QuickBooks: hidden from Claude in a follow-up workspace. */
+  hidden: number
+}
+
 declare module 'claude-code' {
   interface PluginState {
     followup: {
@@ -135,6 +145,8 @@ declare module 'claude-code' {
       busy: boolean
       /** True once `<ws>/followup_mod/config.json` exists. */
       ready: boolean
+      /** The QuickBooks connector as the mod last saw it, or null before the first look. */
+      qb: Shaped<QuickBooksStatus | null>
     }
   }
 }

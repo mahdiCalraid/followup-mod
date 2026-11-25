@@ -186,8 +186,27 @@ function engine(on: any, files: Record<string, string>): Rec {
     return { result: {} }
   })
   on('session.start', (_: unknown, e: any) => ({ cwd: e.cwd }))
+  on('tool.list', () => ({ value: TOOLS.map(([name, description]) => ({ name, description, mcp: name.startsWith('mcp__') })) }))
   return rec
 }
+
+// The session's tools beneath the plugin: [name, description].
+let TOOLS: [string, string][] = []
+const QB_TOOLS: [string, string][] = [
+  ['mcp__a933__company-info', 'Get the QuickBooks company profile.'],
+  ['mcp__a933__profit-loss-quickbooks-account', 'Profit and loss from your QuickBooks account.'],
+  ['mcp__a933__customers_search', 'Search customers.'],
+  ['mcp__a933__quickbooks-transaction-import', 'Import transactions into QuickBooks.'],
+  ['mcp__a933__invoices_create', 'Create an invoice.'],
+  ['mcp__a933__invoices_send', 'Email an invoice.'],
+]
+const OTHER_TOOLS: [string, string][] = [
+  ['Read', 'Reads a file.'],
+  ['mcp__gm__search_threads', 'Search Gmail threads.'],
+  ['mcp__gm__create_draft', 'Create a Gmail draft.'],
+  ['mcp__gm__send_message', 'Send an email.'],
+  ['mcp__ccd_turn__update_plan', 'The task list.'],
+]
 
 const configured = () => ({
   [CONFIG]: JSON.stringify({ business_name: 'Brightwater Bakery Co.' }),
@@ -422,5 +441,86 @@ test('the other tabs draw tables, and a reply takes an outcome with a Later date
   expect(await ui.find({ type: 'Select', key: 'later-fu-9' })).toBeUndefined()
   await ui.press({ key: 'out-fu-9-won' })
   expect(engineCalls(rec).at(-1)).toEqual(['python3', FU, 'outcome', 'fu-9', 'won', '--ws', WS])
+  await ui.unmount()
+})
+
+test('when set up, every QuickBooks and browser write is denied, and reads still work', async ($, on) => {
+  const rec = engine(on, configured())
+  await $.session.start({ cwd: WS, surface: 'desktop', isInteractive: true })
+
+  const writes: McpName[] = [
+    'mcp__a933__quickbooks-transaction-import',
+    'mcp__labs__accounts_create', 'mcp__labs__accounts_update', 'mcp__labs__attachments_delete', 'mcp__labs__attachments_upload',
+    'mcp__labs__invoices_send', 'mcp__meridian__create_bill', 'mcp__meridian__batch_entity_operations',
+    'mcp__ng__approve_bank_transactions', 'mcp__ng__book_bank_transaction', 'mcp__ng__bulk_assign_classification',
+    'mcp__ng__apply_credit_memo', 'mcp__labs__payments_record', 'mcp__labs__estimates_convert',
+    'mcp__claude-in-chrome__form_input', 'mcp__claude-in-chrome__javascript_tool', 'mcp__Claude_Browser__javascript_tool',
+  ]
+  for (const tool of writes) {
+    const result = await $.tool.call({ tool })
+    expect(JSON.stringify(result), tool).toContain(DENY)
+  }
+  expect(rec.reached).toEqual([])
+
+  const reads: McpName[] = [
+    'mcp__a933__company-info', 'mcp__a933__profit-loss-quickbooks-account', 'mcp__a933__cash-flow-generator',
+    'mcp__labs__accounts_search', 'mcp__labs__accounts_get', 'mcp__labs__accounts_balances', 'mcp__labs__invoices_search',
+    'mcp__claude-in-chrome__tabs_create_mcp', 'mcp__claude-in-chrome__get_page_text', 'mcp__claude-in-chrome__navigate',
+    'mcp__ccd_turn__update_plan',
+  ]
+  for (const tool of reads) {
+    const result = await $.tool.call({ tool })
+    expect(JSON.stringify(result), tool).not.toContain(DENY)
+  }
+  expect(rec.reached).toEqual(reads)
+})
+
+test('/followup connect sets the folder up first and reports the QuickBooks connector', async ($, on) => {
+  TOOLS = [...OTHER_TOOLS, ...QB_TOOLS]
+  const files: Record<string, string> = {}
+  const rec = engine(on, files)
+  await $.session.start({ cwd: WS, surface: 'desktop', isInteractive: true })
+
+  const result = await $.command.run(command('connect'))
+  expect(files[CONFIG]).toBeDefined()
+  expect(engineCalls(rec)).toContainEqual(['python3', FU, 'init', '--ws', WS])
+  expect(result.text).toContain('QuickBooks is connected')
+  expect(result.text).toContain('3 tools that could change QuickBooks are hidden')
+  expect(rec.opened).toContain('followup')
+})
+
+test('/followup connect without a connector explains that the owner signs in on Intuit', async ($, on) => {
+  TOOLS = [...OTHER_TOOLS]
+  engine(on, configured())
+  await $.session.start({ cwd: WS, surface: 'desktop', isInteractive: true })
+
+  const result = await $.command.run(command('connect'))
+  expect(result.text).toContain('QuickBooks is not connected yet')
+  expect(result.text).toContain("Intuit's own page")
+})
+
+test('the pane shows the QuickBooks line, with Connect QuickBooks when it is missing', async ($, on) => {
+  TOOLS = [...OTHER_TOOLS]
+  engine(on, configured())
+  await $.session.start({ cwd: WS, surface: 'desktop', isInteractive: true })
+  await $.command.run(command(''))
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect((await ui.find({ type: 'Text', text: /^QuickBooks:/ }))?.text).toBe('QuickBooks: not connected')
+  expect(await ui.find({ type: 'Button', key: 'connect' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('the pane says QuickBooks is read-only here when the connector is there', async ($, on) => {
+  TOOLS = [...OTHER_TOOLS, ...QB_TOOLS]
+  engine(on, configured())
+  await $.session.start({ cwd: WS, surface: 'desktop', isInteractive: true })
+  await $.command.run(command(''))
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect((await ui.find({ type: 'Text', text: /^QuickBooks:/ }))?.text).toBe(
+    'QuickBooks: connected, read-only here (3 tools that could change it hidden)',
+  )
+  expect(await ui.find({ type: 'Button', key: 'connect' })).toBeUndefined()
   await ui.unmount()
 })

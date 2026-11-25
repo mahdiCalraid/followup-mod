@@ -1,6 +1,6 @@
 # Follow-up mod: build contract (v1)
 
-This is the single source of truth between the three parts: the **engine** (Python + SQLite), the **mod** (Claude Code pane, commands and guard) and the **instructions** (`engine/*.md`, which Claude follows). The design is in `/Users/ed/god_folder/FOLLOWUP_MOD_DESIGN.md`.
+This is the single source of truth between the three parts: the **engine** (Python + SQLite), the **mod** (Claude Code pane, commands and guard) and the **instructions** (`engine/*.md`, which Claude follows). The design notes are kept with the program files, outside this repository.
 
 Hard limits:
 - Python must be **3.9-compatible**, use the **standard library only** (`sqlite3`, `zipfile`, `json`, `argparse`, `datetime`, `re`, `html`), and run on macOS and Windows.

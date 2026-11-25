@@ -1,6 +1,6 @@
 {
   "name": "followup",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Follow-ups for a small business: finds overdue invoices, quiet quotes and unanswered customers from QuickBooks and mail, has Claude draft each follow-up for your review in a Follow-ups pane, and puts the ones you approve into Gmail as drafts. It never sends email and never changes QuickBooks: you press Send in Gmail.",
   "author": {
     "name": "Transition States AI"
