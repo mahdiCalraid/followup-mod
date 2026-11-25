@@ -36,6 +36,12 @@ Write the file exactly in the shape of `followup_mod/STATE.md` §1. You need fou
 
 Page through every result. If a tool needs a filter you can't express, fetch more and filter in your head. Never filter by guessing.
 
+With **QuickBooks Labs** (tested 2026-11-25), these calls cover it:
+- customers: `contacts_search` with `type: Customer`, `detail: full`
+- estimates: `transactions_search` with `types: ["Estimate"]`, `status: pending`
+- invoices: `transactions_search` with `types: ["Invoice"]`, `status: open`, plus `status: paid` with `date_from` 24 months back
+- the total: `reports_run` with `report: AgedReceivables` and `period.as_of` today. Its TOTAL row is `invoices_open_balance`. There's no estimates total, so `estimates_pending_amount` is `null`.
+
 **Path B, Chrome** (`quickbooks: chrome`). Use Claude in Chrome. Load its tools in one ToolSearch call, then open **your own new tab**: QuickBooks Online → Reports. Read three reports with `get_page_text`:
 1. **Open Invoices** (or A/R Aging Detail): number, customer, date, due date, amount, open balance. Use the report's **Total** row.
 2. **Estimates by Customer**, filtered to Pending: number, customer, date, amount, status. Use the report's **Total** row.
