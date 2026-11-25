@@ -355,7 +355,18 @@ def cmd_todo_drafts(ctx: Ctx, a: argparse.Namespace) -> Dict[str, Any]:
         items.append({"id": fu["id"], "customer_name": v["customer_name"], "kind": fu["kind"], "kind_label": v["kind_label"],
                       "state": fu["state"], "tier": fu.get("tier"), "reason": fu["reason"], "to": to,
                       "revise_instruction": fu.get("revise_instruction")})
-    return {"count": len(items), "items": items}
+    if not getattr(a, "full", False):
+        return {"count": len(items), "items": items}
+    # --full: everything needed to draft every item in one call; the voice and
+    # recent edits are shared, so they appear once at the top.
+    shared: Dict[str, Any] = {}
+    full = []
+    for item in items:
+        detail = cmd_show(ctx, argparse.Namespace(id=item["id"]))
+        for key in ("voice", "voice_missing", "learned_edits", "sender_name", "business_name"):
+            shared[key] = detail.pop(key, None)
+        full.append(detail)
+    return {"count": len(full), "items": full, **shared}
 
 
 def store_draft(ctx: Ctx, fu: Dict[str, Any], subject: Optional[str], body: Optional[str], to: Optional[str],
@@ -401,8 +412,8 @@ def cmd_draft(ctx: Ctx, a: argparse.Namespace) -> Dict[str, Any]:
     require_state(fu, ("found", "revise", "drafted", "needs_you", "failed"), "draft")
     if fu["state"] == "call" or not (a.to or fu.get("draft_to") or (fu.get("evidence") or {}).get("email")):
         raise CliError("%s has no email address; it's a phone call." % fu["id"])
-    body = None
-    if a.body_file:
+    body = a.body if getattr(a, "body", None) is not None else None
+    if body is None and a.body_file:
         path = Path(a.body_file).expanduser()
         if not path.is_absolute():
             path = Path.cwd() / path
@@ -411,7 +422,7 @@ def cmd_draft(ctx: Ctx, a: argparse.Namespace) -> Dict[str, Any]:
         except OSError as exc:
             raise CliError("Couldn't read the body file %s (%s)." % (path, exc))
     if not a.give_up and (a.subject is None or body is None):
-        raise CliError("draft needs --subject and --body-file (or --give-up).")
+        raise CliError("draft needs --subject and --body (or --body-file), or --give-up.")
     return store_draft(ctx, fu, a.subject, body, a.to, give_up=a.give_up)
 
 
@@ -708,6 +719,20 @@ def cmd_export(ctx: Ctx, a: argparse.Namespace) -> Dict[str, Any]:
     return {}
 
 
+def _demo_voice(ctx: Ctx) -> None:
+    """Give the demo a filled-in voice, but only where VOICE.md is missing or still the untouched template."""
+    template = Path(__file__).resolve().parent.parent / "templates" / "VOICE.template.md"
+    voice = ctx.paths.voice
+    try:
+        current = voice.read_text(encoding="utf-8-sig") if voice.exists() else None
+        untouched = current is None or (template.exists() and current == template.read_text(encoding="utf-8-sig"))
+        if untouched:
+            voice.parent.mkdir(parents=True, exist_ok=True)
+            voice.write_text(fu_demo.DEMO_VOICE, encoding="utf-8")
+    except OSError:
+        pass
+
+
 def cmd_demo(ctx: Ctx, a: argparse.Namespace) -> Dict[str, Any]:
     conn = ctx.conn(create=True)
     ctx.paths.views.mkdir(parents=True, exist_ok=True)
@@ -723,6 +748,7 @@ def cmd_demo(ctx: Ctx, a: argparse.Namespace) -> Dict[str, Any]:
         for email in dnc_emails:
             conn.execute("UPDATE customers SET do_not_contact = 1 WHERE lower(email) = ?", (email.lower(),))
     ranked = rank_run(ctx, fu_db.get_run(conn, run["run_id"]))
+    _demo_voice(ctx)
     drafts = []
     if a.with_drafts:
         sender = ctx.cfg.get("sender_name") or fu_demo.DEMO_BUSINESS
@@ -792,10 +818,13 @@ def build_parser() -> Parser:
     sp.add_argument("--batch", type=int, default=10)
     add("rank", cmd_rank, "apply the rules").add_argument("--run", required=True)
     add("show", cmd_show, "everything needed to draft one follow-up").add_argument("id")
-    add("todo-drafts", cmd_todo_drafts, "follow-ups that still need a draft").add_argument("--run", default=None)
+    sp = add("todo-drafts", cmd_todo_drafts, "follow-ups that still need a draft")
+    sp.add_argument("--run", default=None)
+    sp.add_argument("--full", action="store_true", help="include everything needed to draft each one")
     sp = add("draft", cmd_draft, "store and check a draft")
     sp.add_argument("id")
     sp.add_argument("--subject", default=None)
+    sp.add_argument("--body", default=None, help="the email body, inline")
     sp.add_argument("--body-file", default=None)
     sp.add_argument("--to", default=None)
     sp.add_argument("--give-up", action="store_true")

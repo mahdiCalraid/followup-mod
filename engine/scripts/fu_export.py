@@ -206,8 +206,8 @@ def build_tables(snap: Snapshot, pane: Dict[str, Any]) -> List[Dict[str, Any]]:
         cust_rows.append({"name": c["name"], "company": c["company"], "email": c["email"], "phone": c["phone"],
                           "type": c["type"], "dnc": "Yes" if c["do_not_contact"] else "No",
                           "open_estimates": c["open_estimates"], "open_estimate_amount": c["open_estimate_amount"],
-                          "overdue_balance": c["overdue_balance"], "last_contact": c["last_contact_at"],
-                          "last_from": c["last_contact_from"], "sent": c["followups_sent"],
+                          "overdue_balance": c["overdue_balance"], "last_contact": (c["last_contact_at"] or "")[:10] or None,
+                          "last_from": {"them": "Them", "us": "Us"}.get(c["last_contact_from"] or "", c["last_contact_from"]), "sent": c["followups_sent"],
                           "outcome": (c["last_outcome"] or "").replace("_", " ")})
     est_rows = []
     for e in snap.open_estimates:
@@ -231,16 +231,17 @@ def build_tables(snap: Snapshot, pane: Dict[str, Any]) -> List[Dict[str, Any]]:
                          "event": _event_label(ev.get("kind") or ""), "note": ev.get("note")})
 
     T, M, I, N, L = "text", "money", "int", "num", "long"
-    fu_cols_review = [("Follow-up", "id", T), ("State", "state", T), ("Kind", "kind", T), ("Customer", "customer", T),
-                      ("Email", "email", T), ("Phone", "phone", T), ("Tier", "tier", T), ("Reason", "reason", L),
-                      ("Subject", "subject", T), ("Draft", "draft", L), ("Problems", "problems", L)]
-    fu_cols_all = [("Follow-up", "id", T), ("Created", "created", T), ("State", "state", T), ("Kind", "kind", T),
-                   ("Customer", "customer", T), ("Email", "email", T), ("Reason", "reason", L), ("Tier", "tier", T),
-                   ("Priority", "priority", N), ("Subject", "subject", T), ("Staged", "staged", T), ("Sent", "sent", T),
-                   ("Replied", "replied", T), ("Outcome", "outcome", T), ("Later date", "later", T), ("Updated", "updated", T)]
-    sent_cols = [("Follow-up", "id", T), ("Customer", "customer", T), ("Email", "email", T), ("Kind", "kind", T),
-                 ("Subject", "subject", T), ("State", "state", T), ("Staged", "staged", T), ("Sent", "sent", T),
-                 ("Replied", "replied", T), ("Their reply", "reply", L), ("Outcome", "outcome", T)]
+    # Customer first, the internal reference last: people scan by name.
+    fu_cols_review = [("Customer", "customer", T), ("Kind", "kind", T), ("Tier", "tier", T), ("Reason", "reason", L),
+                      ("State", "state", T), ("Subject", "subject", T), ("Draft", "draft", L), ("Email", "email", T),
+                      ("Phone", "phone", T), ("Problems", "problems", L), ("Ref", "id", T)]
+    fu_cols_all = [("Customer", "customer", T), ("Kind", "kind", T), ("State", "state", T), ("Reason", "reason", L),
+                   ("Tier", "tier", T), ("Subject", "subject", T), ("Created", "created", T), ("Staged", "staged", T),
+                   ("Sent", "sent", T), ("Replied", "replied", T), ("Outcome", "outcome", T), ("Later date", "later", T),
+                   ("Email", "email", T), ("Priority", "priority", N), ("Updated", "updated", T), ("Ref", "id", T)]
+    sent_cols = [("Customer", "customer", T), ("Subject", "subject", T), ("State", "state", T), ("Sent", "sent", T),
+                 ("Replied", "replied", T), ("Their reply", "reply", L), ("Outcome", "outcome", T), ("Kind", "kind", T),
+                 ("Staged", "staged", T), ("Email", "email", T), ("Ref", "id", T)]
     return [
         {"id": "to-review", "name": "To review", "filter": "state", "columns": fu_cols_review,
          "rows": [fu_row(v) for v in pane["today_items"]]},
@@ -261,8 +262,8 @@ def build_tables(snap: Snapshot, pane: Dict[str, Any]) -> List[Dict[str, Any]]:
                      ("Amount", "amount", M), ("Balance", "balance", M), ("Days overdue", "days", I), ("Status", "status", T),
                      ("Memo", "memo", L)], "rows": inv_rows},
         {"id": "activity", "name": "Activity", "filter": "event",
-         "columns": [("At", "at", T), ("Follow-up", "followup", T), ("Customer", "customer", T), ("Event", "event", T),
-                     ("Note", "note", L)], "rows": act_rows},
+         "columns": [("At", "at", T), ("Customer", "customer", T), ("Event", "event", T), ("Note", "note", L),
+                     ("Ref", "followup", T)], "rows": act_rows},
     ]
 
 

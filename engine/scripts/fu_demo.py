@@ -200,3 +200,54 @@ def template_draft(fu: Dict[str, Any], customer: Dict[str, Any], docs: Dict[str,
         subject = "Re: %s" % topic if not topic.lower().startswith("re:") else topic
         body = (hi + "I wanted to check back in on our last conversation. Is there anything we can help with?" + sign)
     return subject, body
+
+
+# The fictional owner's voice, written into VOICE.md by `fu.py demo` only when
+# VOICE.md is missing or still the untouched template.
+DEMO_VOICE = """# How our emails should sound
+
+Brightwater Bakery Co. is a small wholesale bakery. Alex, the owner, writes every email.
+
+## Tone
+
+Warm, plain and brief: three or four short sentences. We know these people; we bake their bread.
+No sales talk, no guilt, no exclamation marks in payment reminders.
+
+## Greeting
+
+Hi <first name>,
+
+## Sign-off
+
+Thanks,
+Alex
+Brightwater Bakery Co.
+
+## Never say
+
+- "I hope this email finds you well", "just circling back", "per my last email"
+- "final notice", "legal action", "collections"
+- Discounts or promises we haven't agreed to
+
+## Sample emails
+
+**A friendly payment reminder**
+
+> Hi Sam,
+>
+> Just a quick note that invoice 1050 is still open. If it's already on its way, thank you, and please
+> ignore this. If you need another copy, just reply and I'll send it over.
+>
+> Thanks,
+> Alex
+
+**Checking in on a quote**
+
+> Hi Dana,
+>
+> Did you get a chance to look at the estimate we sent? Happy to adjust quantities or delivery days
+> if that helps.
+>
+> Thanks,
+> Alex
+"""

@@ -362,3 +362,26 @@ class OutputTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+class InlineDraftTests(unittest.TestCase):
+    """`draft --body` (no temp file) and `todo-drafts --full` (one call for everything)."""
+
+    def test_inline_body_and_full_todo(self):
+        w = Workspace()
+        try:
+            w.cli("demo", today=TODAY)
+            todo = w.cli("todo-drafts", "--full")
+            self.assertGreaterEqual(todo["count"], 7)
+            self.assertIn("voice", todo)
+            first = todo["items"][0]
+            self.assertIn("evidence", first)
+            self.assertNotIn("voice", first)
+            fid = first["followup"]["id"]
+            body = ("Hi there,\n\nA short note from us. Could you let us know when we can expect payment?"
+                    "\n\nThanks,\nBrightwater Bakery Co.")
+            out = w.cli("draft", fid, "--subject", "A quick note", "--body", body, "--to", first["evidence"]["email"])
+            self.assertEqual(out["state"], "drafted")
+        finally:
+            w.cleanup()

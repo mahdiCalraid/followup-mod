@@ -2,17 +2,17 @@
 
 You write the emails; code checks every fact. Work from the workspace root.
 
-## 1. What needs drafting
+## 1. What needs drafting: one call
 
 ```
-python3 followup_mod/scripts/fu.py todo-drafts
+python3 followup_mod/scripts/fu.py todo-drafts --full
 ```
 
-The command lists follow-ups in state `found` (new) or `revise` (the owner asked for a change, or answered your questions). If there are several, draft them in parallel with sub-agents, one per follow-up. Each sub-agent writes only through `fu.py` for its own id.
+This lists every follow-up in state `found` (new) or `revise` (the owner asked for a change, or answered your questions), with everything you need to draft each one. `voice`, `learned_edits` and `sender_name` appear once at the top. Draft them yourself, one after another. Don't start sub-agents: a run has at most a few drafts, and every call goes through the same engine.
 
 ## 2. For each follow-up
 
-1. Run `python3 followup_mod/scripts/fu.py show <id>`. It gives you:
+1. Each item from `todo-drafts --full` (or `show <id>` for a single one) gives you:
    - the customer and the reason
    - `evidence.facts`, `amounts`, `numbers`, `dates` and `days`
    - the tier and the tier guidance
@@ -49,10 +49,15 @@ The owner's Gmail signature is added at staging, so end with the sign-off from `
 
 **Revise.** If `revise_instruction` is set, apply it exactly, and keep everything else true.
 
-4. Write the body to a temporary file in the scratchpad or `runs/` (not in chat). Then:
+4. Store it. Pass the body inline, with real line breaks inside the quotes. Escape any `"` or `$` in the text for the shell, or use single quotes:
 
 ```
-python3 followup_mod/scripts/fu.py draft <id> --subject "<subject>" --body-file <file> --to <email>
+python3 followup_mod/scripts/fu.py draft <id> --subject "<subject>" --to <email> --body "Hi Dana,
+
+…
+
+Thanks,
+Brightwater Bakery Co."
 ```
 
 5. If the result has `problems`, fix exactly those and run `draft` once more. If it fails a second time, the engine sets `needs_you` itself. Add a clear question if one would unblock it:
@@ -63,7 +68,7 @@ python3 followup_mod/scripts/fu.py needs-you <id> --question "<what you need>" [
 
 ## 3. When the owner answered questions
 
-For follow-ups back in `revise` after `needs_you`, read the answers in `show <id>` → `items[].answer` and use them. Never ask the same thing again.
+For follow-ups back in `revise` after `needs_you`, read the answers in `items[].answer` and use them. Never ask the same thing again.
 
 ## 4. Tell the owner
 
